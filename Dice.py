@@ -26,19 +26,17 @@ except FileNotFoundError:
     background = pygame.Surface((WIDTH, HEIGHT))
     background.fill((50, 50, 50))
 
-
-try:
-    dice_images = [
-        pygame.image.load(f"dice_{i}.jpg").convert_alpha() for i in range(1, 7)
-    ]
-    dice_size = 100
-    dice_images = [pygame.transform.scale(img, (dice_size, dice_size)) for img in dice_images]
-except FileNotFoundError:
-    print("Ошибка: файлы с изображениями костей не найдены!")
-    dice_images = []
-    for i in range(6):
+dice_size = 100
+dice_images = []
+for i in range(6):
+    try:
+        img = pygame.image.load(f"uice_{i+1}.png").convert_alpha()
+        img = pygame.transform.scale(img, (dice_size, dice_size))
+        dice_images.append(img)
+    except FileNotFoundError:
+        print(f"Ошибка: файл Dice_{i+1}.png не найден! Создаю стандартную кость.")
         surf = pygame.Surface((dice_size, dice_size), pygame.SRCALPHA)
-        pygame.draw.rect(surf, WHITE, (0, 0, dice_size, dice_size))
+        pygame.draw.rect(surf, (222, 184, 135), (0, 0, dice_size, dice_size))
         pygame.draw.rect(surf, BLACK, (0, 0, dice_size, dice_size), 2)
         dots = [
             [(1,1)], [(0,0), (2,2)], [(0,0), (1,1), (2,2)],
@@ -82,7 +80,6 @@ def create_player_cards(num_players):
         row = player // max_cards_per_row
         col = player % max_cards_per_row
         
-        
         if num_players <= 2:
             x = margin + col * (card_width + margin)
         else:
@@ -90,7 +87,6 @@ def create_player_cards(num_players):
             x += col * (card_width + margin)
         
         y = start_y + row * (card_height + margin)
-        
         
         numbers = list(range(1, 13))
         
@@ -142,7 +138,6 @@ while running:
                 NUM_PLAYERS = 4
                 player_cards = create_player_cards(NUM_PLAYERS)
         elif event.type == pygame.MOUSEBUTTONDOWN:
-            
             mouse_pos = pygame.mouse.get_pos()
             clicked_on_cell = False
             
@@ -152,13 +147,10 @@ while running:
                         cell['marked'] = not cell['marked']
                         clicked_on_cell = True
             
-            
             if not clicked_on_cell:
                 current_dice = [random.randint(1, 6), random.randint(1, 6)]
 
-    
     screen.blit(background, (0, 0))
-    
     
     text = font.render("Нажмите SPACE или кликните вне карточек для броска костей", True, WHITE)
     text_rect = text.get_rect(center=text_position)
@@ -170,32 +162,26 @@ while running:
     for i in range(2):
         screen.blit(dice_images[current_dice[i]-1], dice_positions[i])
 
-    
     for card in player_cards:
-        
-        pygame.draw.rect(screen, GRAY, (*card['position'], *card['size']), 2)
         pygame.draw.rect(screen, BEIGE, (*card['position'], *card['size']))
+        pygame.draw.rect(screen, GRAY, (*card['position'], *card['size']), 2)
         
-        
+        # Номер игрока теперь отображается над карточкой
         player_text = player_font.render(f"Игрок {card['player_num']}", True, BLACK)
         player_rect = player_text.get_rect(
             center=(card['position'][0] + card['size'][0] // 2, 
-                    card['position'][1] + 15)
-        )
+                    card['position'][1] - 20))  # Подняли текст выше карточки
         screen.blit(player_text, player_rect)
-        
         
         for cell in card['cells']:
             color = DARK_BEIGE if cell['marked'] else BEIGE
             pygame.draw.rect(screen, color, cell['rect'])
             pygame.draw.rect(screen, GRAY, cell['rect'], 1)
             
-           
             num_text = small_font.render(str(cell['number']), True, BLACK)
             num_rect = num_text.get_rect(center=cell['rect'].center)
             screen.blit(num_text, num_rect)
 
-    
     players_text = small_font.render(f"Игроков: {NUM_PLAYERS} (1-4 для изменения)", True, WHITE)
     screen.blit(players_text, (20, HEIGHT - 30))
 
