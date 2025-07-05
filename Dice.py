@@ -10,6 +10,8 @@ screen = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption("Игральные кости с карточками игроков")
 
 NUM_PLAYERS = 2  
+current_player = 1  # Текущий игрок (начинает первый)
+has_rolled = False  # Флаг, что игрок уже бросал кости в этот ход
 
 BEIGE = (255, 235, 205)         
 DARK_BEIGE = (222, 184, 135)   
@@ -17,6 +19,8 @@ DARK_BLUE = (255, 235, 205)
 WHITE = (160, 82, 45)
 BLACK = (0, 0, 0)
 GRAY = (200, 200, 200)
+HIGHLIGHT = (205, 133, 63)  # Цвет подсветки доступных чисел
+PLAYER_COLORS = [(205, 133, 63), (210, 105, 30), (139, 69, 19), (160, 82, 45)]  # Цвета для индикатора игроков
 
 try:
     background = pygame.image.load("background1.jpg").convert()
@@ -30,7 +34,7 @@ dice_size = 100
 dice_images = []
 for i in range(6):
     try:
-        img = pygame.image.load(f"uice_{i+1}.png").convert_alpha()
+        img = pygame.image.load(f"ice_{i+1}.png").convert_alpha()
         img = pygame.transform.scale(img, (dice_size, dice_size))
         dice_images.append(img)
     except FileNotFoundError:
@@ -56,6 +60,8 @@ dice_positions = [
 text_position = (WIDTH // 2, 50)  
 
 current_dice = [1, 1]
+dice_sum = sum(current_dice)
+available_numbers = set(current_dice + [dice_sum])  # Доступные для закрытия числа
 
 font = pygame.font.SysFont('Arial', 24)
 small_font = pygame.font.SysFont('Arial', 18)
@@ -117,47 +123,130 @@ def create_player_cards(num_players):
 
 player_cards = create_player_cards(NUM_PLAYERS)
 
+def draw_turn_indicator():
+    indicator_size = 150
+    indicator_rect = pygame.Rect(WIDTH - indicator_size - 20, 20, indicator_size, 50)
+    pygame.draw.rect(screen, PLAYER_COLORS[current_player-1], indicator_rect)
+    pygame.draw.rect(screen, BLACK, indicator_rect, 2)
+    
+    turn_text = player_font.render(f"Ход игрока {current_player}", True, BLACK)
+    text_rect = turn_text.get_rect(center=indicator_rect.center)
+    screen.blit(turn_text, text_rect)
+
+def mark_numbers(card, numbers_to_mark):
+    """Помечает указанные числа на карточке игрока"""
+    marked_any = False
+    for cell in card['cells']:
+        if not cell['marked'] and cell['number'] in numbers_to_mark:
+            cell['marked'] = True
+            marked_any = True
+    return marked_any
+
+def get_available_moves(card):
+    """Возвращает доступные для закрытия числа с учетом уже закрытых"""
+    available = []
+    # Проверяем сумму
+    if dice_sum in [cell['number'] for cell in card['cells'] if not cell['marked']]:
+        available.append(dice_sum)
+    
+    # Проверяем возможность закрыть оба числа
+    both_available = True
+    for num in current_dice:
+        if num not in [cell['number'] for cell in card['cells'] if not cell['marked']]:
+            both_available = False
+            break
+    
+    if both_available:
+        available.extend(current_dice)
+    
+    return available
+
 running = True
 while running:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
         elif event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_SPACE:
+            if event.key == pygame.K_SPACE and not has_rolled:
                 current_dice = [random.randint(1, 6), random.randint(1, 6)]
+                dice_sum = sum(current_dice)
+                available_numbers = set(current_dice + [dice_sum])
+                has_rolled = True
+                
+                # Проверяем, есть ли доступные ходы
+                current_card = next(card for card in player_cards if card['player_num'] == current_player)
+                available_moves = get_available_moves(current_card)
+                if not available_moves:
+                    # Нет доступных ходов - пропускаем ход
+                    current_player = current_player % NUM_PLAYERS + 1
+                    has_rolled = False
+                    
             elif event.key == pygame.K_1:
                 NUM_PLAYERS = 1
+                current_player = 1
                 player_cards = create_player_cards(NUM_PLAYERS)
+                has_rolled = False
             elif event.key == pygame.K_2:
                 NUM_PLAYERS = 2
+                current_player = 1
                 player_cards = create_player_cards(NUM_PLAYERS)
+                has_rolled = False
             elif event.key == pygame.K_3:
                 NUM_PLAYERS = 3
+                current_player = 1
                 player_cards = create_player_cards(NUM_PLAYERS)
+                has_rolled = False
             elif event.key == pygame.K_4:
                 NUM_PLAYERS = 4
+                current_player = 1
                 player_cards = create_player_cards(NUM_PLAYERS)
+                has_rolled = False
         elif event.type == pygame.MOUSEBUTTONDOWN:
             mouse_pos = pygame.mouse.get_pos()
             clicked_on_cell = False
             
             for card in player_cards:
-                for cell in card['cells']:
-                    if cell['rect'].collidepoint(mouse_pos):
-                        cell['marked'] = not cell['marked']
-                        clicked_on_cell = True
-            
-            if not clicked_on_cell:
-                current_dice = [random.randint(1, 6), random.randint(1, 6)]
+                # Проверяем, что клик был по карточке текущего игрока
+                if card['player_num'] == current_player and has_rolled:
+                    for cell in card['cells']:
+                        if cell['rect'].collidepoint(mouse_pos) and not cell['marked']:
+                            # Проверяем, что число можно закрыть
+                            if cell['number'] in available_numbers:
+                                # Закрываем либо сумму, либо оба числа
+                                if cell['number'] == dice_sum:
+                                    # Закрываем только сумму
+                                    cell['marked'] = True
+                                    clicked_on_cell = True
+                                elif cell['number'] in current_dice:
+                                    # Пытаемся закрыть оба числа
+                                    other_num = dice_sum - cell['number'] if dice_sum - cell['number'] in current_dice else None
+                                    if other_num is not None:
+                                        # Проверяем, что оба числа доступны
+                                        can_mark_both = True
+                                        for num in current_dice:
+                                            if num not in [c['number'] for c in card['cells'] if not c['marked']]:
+                                                can_mark_both = False
+                                                break
+                                        
+                                        if can_mark_both:
+                                            # Закрываем оба числа
+                                            marked_both = mark_numbers(card, current_dice)
+                                            if marked_both:
+                                                clicked_on_cell = True
+                                    else:
+                                        # Закрываем только одно число
+                                        cell['marked'] = True
+                                        clicked_on_cell = True
+                                
+                                if clicked_on_cell:
+                                    # Переход хода после отметки
+                                    current_player = current_player % NUM_PLAYERS + 1
+                                    has_rolled = False
+                                    break
+                    if clicked_on_cell:
+                        break
 
     screen.blit(background, (0, 0))
-    
-    text = font.render("Нажмите SPACE или кликните вне карточек для броска костей", True, WHITE)
-    text_rect = text.get_rect(center=text_position)
-    pygame.draw.rect(screen, (*DARK_BLUE, 200), 
-                       (text_rect.x - 10, text_rect.y - 5,
-                        text_rect.width + 20, text_rect.height + 10))
-    screen.blit(text, text_rect)
 
     for i in range(2):
         screen.blit(dice_images[current_dice[i]-1], dice_positions[i])
@@ -166,15 +255,29 @@ while running:
         pygame.draw.rect(screen, BEIGE, (*card['position'], *card['size']))
         pygame.draw.rect(screen, GRAY, (*card['position'], *card['size']), 2)
         
-        # Номер игрока теперь отображается над карточкой
+        # Позиция номера игрока зависит от количества игроков
+        if NUM_PLAYERS <= 2:
+            player_text_y = card['position'][1] - 20  # Стандартное положение
+        else:
+            player_text_y = card['position'][1] - 10  # Ближе к карточке для 3-4 игроков
+            
         player_text = player_font.render(f"Игрок {card['player_num']}", True, BLACK)
         player_rect = player_text.get_rect(
             center=(card['position'][0] + card['size'][0] // 2, 
-                    card['position'][1] - 20))  # Подняли текст выше карточки
+                    player_text_y))
         screen.blit(player_text, player_rect)
         
+        # Получаем доступные ходы только для текущего игрока
+        current_card = card['player_num'] == current_player
+        available_moves = get_available_moves(card) if current_card else []
+        
         for cell in card['cells']:
-            color = DARK_BEIGE if cell['marked'] else BEIGE
+            # Подсвечиваем доступные для закрытия числа только у текущего игрока
+            if current_card and not cell['marked'] and cell['number'] in available_moves:
+                color = HIGHLIGHT
+            else:
+                color = DARK_BEIGE if cell['marked'] else BEIGE
+                
             pygame.draw.rect(screen, color, cell['rect'])
             pygame.draw.rect(screen, GRAY, cell['rect'], 1)
             
@@ -182,8 +285,29 @@ while running:
             num_rect = num_text.get_rect(center=cell['rect'].center)
             screen.blit(num_text, num_rect)
 
+    # Отображаем информацию о доступных числах
+    if has_rolled:
+        current_card = next(card for card in player_cards if card['player_num'] == current_player)
+        available_moves = get_available_moves(current_card)
+        if available_moves:
+            info_text = font.render(f"Закройте: {', '.join(map(str, sorted(available_moves)))}", True, WHITE)
+            screen.blit(info_text, (WIDTH // 2 - 100, 220))
+        else:
+            info_text = font.render("Нет доступных ходов - пропуск хода", True, WHITE)
+            screen.blit(info_text, (WIDTH // 2 - 150, 220))
+
+    # Инструкция
+    if not has_rolled:
+        instruction = font.render("Нажмите SPACE для броска костей", True, WHITE)
+    else:
+        instruction = font.render("Выберите число для закрытия", True, WHITE)
+    screen.blit(instruction, (WIDTH // 2 - 150, HEIGHT - 60))
+
     players_text = small_font.render(f"Игроков: {NUM_PLAYERS} (1-4 для изменения)", True, WHITE)
     screen.blit(players_text, (20, HEIGHT - 30))
+    
+    # Рисуем индикатор текущего игрока
+    draw_turn_indicator()
 
     pygame.display.flip()
 
