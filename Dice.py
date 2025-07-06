@@ -1,7 +1,7 @@
-﻿
-import pygame
+﻿import pygame
 import sys
 import random
+import time
 
 pygame.init()
 
@@ -12,6 +12,8 @@ pygame.display.set_caption("Игральные кости с карточкам�
 NUM_PLAYERS = 2  
 current_player = 1  # Текущий игрок (начинает первый)
 has_rolled = False  # Флаг, что игрок уже бросал кости в этот ход
+rolling = False     # Флаг, что кости сейчас вращаются
+last_roll_time = 0  # Время последнего броска
 
 BEIGE = (255, 235, 205)         
 DARK_BEIGE = (222, 184, 135)   
@@ -21,6 +23,8 @@ BLACK = (0, 0, 0)
 GRAY = (200, 200, 200)
 HIGHLIGHT = (205, 133, 63)  # Цвет подсветки доступных чисел
 PLAYER_COLORS = [(205, 133, 63), (210, 105, 30), (139, 69, 19), (160, 82, 45)]  # Цвета для индикатора игроков
+BUTTON_COLOR = (100, 100, 100)
+BUTTON_HOVER = (150, 150, 150)
 
 try:
     background = pygame.image.load("background1.jpg").convert()
@@ -66,6 +70,11 @@ available_numbers = set(current_dice + [dice_sum])  # Доступные для 
 font = pygame.font.SysFont('Arial', 24)
 small_font = pygame.font.SysFont('Arial', 18)
 player_font = pygame.font.SysFont('Arial', 22, bold=True)  
+
+# Кнопки
+roll_button = pygame.Rect(WIDTH // 2 - 150, HEIGHT - 100, 120, 40)
+stop_button = pygame.Rect(WIDTH // 2 + 30, HEIGHT - 100, 120, 40)
+
 
 def create_player_cards(num_players):
     cards = []
@@ -161,14 +170,73 @@ def get_available_moves(card):
     
     return available
 
+def draw_buttons():
+    # Кнопка "Бросить кости"
+    roll_color = BUTTON_HOVER if roll_button.collidepoint(pygame.mouse.get_pos()) else BUTTON_COLOR
+    pygame.draw.rect(screen, roll_color, roll_button, border_radius=5)
+    pygame.draw.rect(screen, BLACK, roll_button, 2, border_radius=5)
+    roll_text = font.render("Бросить", True, WHITE)
+    screen.blit(roll_text, (roll_button.centerx - roll_text.get_width() // 2, 
+                           roll_button.centery - roll_text.get_height() // 2))
+    
+    # Кнопка "Стоп"
+    stop_color = BUTTON_HOVER if stop_button.collidepoint(pygame.mouse.get_pos()) else BUTTON_COLOR
+    pygame.draw.rect(screen, stop_color, stop_button, border_radius=5)
+    pygame.draw.rect(screen, BLACK, stop_button, 2, border_radius=5)
+    stop_text = font.render("Стоп", True, WHITE)
+    screen.blit(stop_text, (stop_button.centerx - stop_text.get_width() // 2, 
+                          stop_button.centery - stop_text.get_height() // 2))
+    
+
 running = True
 while running:
+    current_time = time.time()
+    
+    # Если кости вращаются и прошло достаточно времени с последнего броска
+    if rolling and current_time - last_roll_time > 0.1:  # 100 мс
+        current_dice = [random.randint(1, 6), random.randint(1, 6)]
+        last_roll_time = current_time
+    
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
         elif event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_SPACE and not has_rolled:
-                current_dice = [random.randint(1, 6), random.randint(1, 6)]
+            if event.key == pygame.K_SPACE and not has_rolled and not rolling:
+                rolling = True
+                last_roll_time = current_time
+            elif event.key == pygame.K_1:
+                NUM_PLAYERS = 1
+                current_player = 1
+                player_cards = create_player_cards(NUM_PLAYERS)
+                has_rolled = False
+                rolling = False
+            elif event.key == pygame.K_2:
+                NUM_PLAYERS = 2
+                current_player = 1
+                player_cards = create_player_cards(NUM_PLAYERS)
+                has_rolled = False
+                rolling = False
+            elif event.key == pygame.K_3:
+                NUM_PLAYERS = 3
+                current_player = 1
+                player_cards = create_player_cards(NUM_PLAYERS)
+                has_rolled = False
+                rolling = False
+            elif event.key == pygame.K_4:
+                NUM_PLAYERS = 4
+                current_player = 1
+                player_cards = create_player_cards(NUM_PLAYERS)
+                has_rolled = False
+                rolling = False
+        elif event.type == pygame.MOUSEBUTTONDOWN:
+            mouse_pos = pygame.mouse.get_pos()
+            
+            # Обработка нажатия на кнопки
+            if roll_button.collidepoint(mouse_pos) and not has_rolled and not rolling:
+                rolling = True
+                last_roll_time = current_time
+            elif stop_button.collidepoint(mouse_pos) and rolling:
+                rolling = False
                 dice_sum = sum(current_dice)
                 available_numbers = set(current_dice + [dice_sum])
                 has_rolled = True
@@ -180,48 +248,20 @@ while running:
                     # Нет доступных ходов - пропускаем ход
                     current_player = current_player % NUM_PLAYERS + 1
                     has_rolled = False
-                    
-            elif event.key == pygame.K_1:
-                NUM_PLAYERS = 1
-                current_player = 1
-                player_cards = create_player_cards(NUM_PLAYERS)
-                has_rolled = False
-            elif event.key == pygame.K_2:
-                NUM_PLAYERS = 2
-                current_player = 1
-                player_cards = create_player_cards(NUM_PLAYERS)
-                has_rolled = False
-            elif event.key == pygame.K_3:
-                NUM_PLAYERS = 3
-                current_player = 1
-                player_cards = create_player_cards(NUM_PLAYERS)
-                has_rolled = False
-            elif event.key == pygame.K_4:
-                NUM_PLAYERS = 4
-                current_player = 1
-                player_cards = create_player_cards(NUM_PLAYERS)
-                has_rolled = False
-        elif event.type == pygame.MOUSEBUTTONDOWN:
-            mouse_pos = pygame.mouse.get_pos()
-            clicked_on_cell = False
             
+            # Обработка кликов по карточкам (как в оригинальном коде)
+            clicked_on_cell = False
             for card in player_cards:
-                # Проверяем, что клик был по карточке текущего игрока
-                if card['player_num'] == current_player and has_rolled:
+                if card['player_num'] == current_player and has_rolled and not rolling:
                     for cell in card['cells']:
                         if cell['rect'].collidepoint(mouse_pos) and not cell['marked']:
-                            # Проверяем, что число можно закрыть
                             if cell['number'] in available_numbers:
-                                # Закрываем либо сумму, либо оба числа
                                 if cell['number'] == dice_sum:
-                                    # Закрываем только сумму
                                     cell['marked'] = True
                                     clicked_on_cell = True
                                 elif cell['number'] in current_dice:
-                                    # Пытаемся закрыть оба числа
                                     other_num = dice_sum - cell['number'] if dice_sum - cell['number'] in current_dice else None
                                     if other_num is not None:
-                                        # Проверяем, что оба числа доступны
                                         can_mark_both = True
                                         for num in current_dice:
                                             if num not in [c['number'] for c in card['cells'] if not c['marked']]:
@@ -229,17 +269,15 @@ while running:
                                                 break
                                         
                                         if can_mark_both:
-                                            # Закрываем оба числа
                                             marked_both = mark_numbers(card, current_dice)
+                                            
                                             if marked_both:
                                                 clicked_on_cell = True
                                     else:
-                                        # Закрываем только одно число
                                         cell['marked'] = True
                                         clicked_on_cell = True
                                 
                                 if clicked_on_cell:
-                                    # Переход хода после отметки
                                     current_player = current_player % NUM_PLAYERS + 1
                                     has_rolled = False
                                     break
@@ -255,11 +293,10 @@ while running:
         pygame.draw.rect(screen, BEIGE, (*card['position'], *card['size']))
         pygame.draw.rect(screen, GRAY, (*card['position'], *card['size']), 2)
         
-        # Позиция номера игрока зависит от количества игроков
         if NUM_PLAYERS <= 2:
-            player_text_y = card['position'][1] - 20  # Стандартное положение
+            player_text_y = card['position'][1] - 20
         else:
-            player_text_y = card['position'][1] - 10  # Ближе к карточке для 3-4 игроков
+            player_text_y = card['position'][1] - 10
             
         player_text = player_font.render(f"Игрок {card['player_num']}", True, BLACK)
         player_rect = player_text.get_rect(
@@ -267,12 +304,10 @@ while running:
                     player_text_y))
         screen.blit(player_text, player_rect)
         
-        # Получаем доступные ходы только для текущего игрока
         current_card = card['player_num'] == current_player
         available_moves = get_available_moves(card) if current_card else []
         
         for cell in card['cells']:
-            # Подсвечиваем доступные для закрытия числа только у текущего игрока
             if current_card and not cell['marked'] and cell['number'] in available_moves:
                 color = HIGHLIGHT
             else:
@@ -286,7 +321,7 @@ while running:
             screen.blit(num_text, num_rect)
 
     # Отображаем информацию о доступных числах
-    if has_rolled:
+    if has_rolled and not rolling:
         current_card = next(card for card in player_cards if card['player_num'] == current_player)
         available_moves = get_available_moves(current_card)
         if available_moves:
@@ -297,8 +332,10 @@ while running:
             screen.blit(info_text, (WIDTH // 2 - 150, 220))
 
     # Инструкция
-    if not has_rolled:
-        instruction = font.render("Нажмите SPACE для броска костей", True, WHITE)
+    if rolling:
+        instruction = font.render("Кости вращаются... нажмите СТОП", True, WHITE)
+    elif not has_rolled:
+        instruction = font.render("Нажмите БРОСИТЬ для броска костей", True, WHITE)
     else:
         instruction = font.render("Выберите число для закрытия", True, WHITE)
     screen.blit(instruction, (WIDTH // 2 - 150, HEIGHT - 60))
@@ -308,8 +345,13 @@ while running:
     
     # Рисуем индикатор текущего игрока
     draw_turn_indicator()
+    
+    # Рисуем кнопки
+    draw_buttons()
 
     pygame.display.flip()
 
 pygame.quit()
 sys.exit()
+
+
