@@ -2,6 +2,7 @@ import pygame
 import json
 import os
 import time
+from scripts.theme import theme_manager
 
 def load_records():
     if os.path.exists('records.json'):
@@ -84,17 +85,15 @@ def mark_numbers(card, numbers_to_mark):
             marked_any = True
     return marked_any
 
-background_path = os.path.join("data", "img", "background", "background1.jpg")
-    
-def load_background(self):
-        """Загрузка фонового изображения с обработкой ошибок"""
-        try:
-            if os.path.exists(background_path):
-                background = pygame.image.load(background_path).convert()
-                return pygame.transform.scale(background, (self.WIDTH, self.HEIGHT))
-            else:
-                print(f"Файл не найден: {background_path}")
-                return None
-        except Exception as e:
-            print(f"Ошибка загрузки изображения: {e}")
+def load_background(width, height):
+    try:
+        background_path = theme_manager.get_background_path()
+        if os.path.exists(background_path):
+            background = pygame.image.load(background_path).convert()
+            return pygame.transform.scale(background, (width, height))
+        else:
+            print(f"Файл не найден: {background_path}")
             return None
+    except Exception as e:
+        print(f"Ошибка загрузки изображения: {e}")
+        return None

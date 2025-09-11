@@ -1,6 +1,7 @@
 import pygame
 import sys
-from data.scripts.game_state import GameState
+from scripts.game_state import GameState
+from scripts.theme import theme_manager
 
 class Game:
     def __init__(self):

@@ -2,11 +2,12 @@ import pygame
 import time
 import sys
 import os
-from data.scripts.dice import Dice
-from data.scripts.player import Player
-from data.scripts.button import Button
-from data.scripts.menu import Menu
-from data.scripts.utils import add_record, check_winner, get_available_moves, mark_numbers, create_player_cards, load_background
+from scripts.dice import Dice
+from scripts.player import Player
+from scripts.button import Button
+from scripts.menu import Menu
+from scripts.utils import add_record, check_winner, get_available_moves, mark_numbers, create_player_cards, load_background
+from scripts.utils import theme_manager
 
 class GameState:
     def __init__(self, width, height, screen):
@@ -121,6 +122,17 @@ class GameState:
             }
 
     def play_music(self, music_type):
+        # Получаем текущий играющий звук
+        current_channel = pygame.mixer.find_channel()
+        current_sound = None
+        if current_channel and current_channel.get_sound():
+            current_sound = current_channel.get_sound()
+    
+        # Если запрашиваемый тип музыки уже играет, не перезапускаем
+        if (music_type == "menu" and current_sound == self.sounds["menu_music"]) or \
+        (music_type == "ingame" and current_sound == self.sounds["ingame_music"]):
+            return
+    
         pygame.mixer.stop()
         
         if music_type == "menu" and self.sounds["menu_music"]:
@@ -188,6 +200,11 @@ class GameState:
                 self.player.NUM_PLAYERS = self.player.NUM_PLAYERS % 4 + 1
                 self.menu.update_players_button(self.player.NUM_PLAYERS)
                 self.player.player_cards = create_player_cards(self.player.NUM_PLAYERS, self.WIDTH, self.HEIGHT)
+            elif menu_action == "THEME":
+                theme_manager.current_theme_index = (theme_manager.current_theme_index + 1) % len(theme_manager.themes)
+                theme_manager.current_theme = theme_manager.themes[theme_manager.current_theme_index]
+                self.menu.update_theme_button()
+                self.dice.reload_dice_images()
             elif menu_action == "RULES":
                 self.state = self.RULES
             elif menu_action == "RECORDS":
@@ -258,7 +275,6 @@ class GameState:
         elif self.state in [self.RULES, self.RECORDS]:
             if self.menu_button.is_hovered(mouse_pos):
                 self.state = self.MENU
-                self.play_music("menu")
         elif self.state == self.INPUT_NAME:
             if self.menu_button.is_hovered(mouse_pos):
                 self.state = self.MENU
@@ -294,7 +310,7 @@ class GameState:
             self.render_winner_screen()
     
     def render_game(self):
-        background = load_background(self)
+        background = load_background(self.WIDTH, self.HEIGHT)
         if background:
             self.screen.blit(background, (0, 0))
         else:
@@ -318,26 +334,26 @@ class GameState:
                     if available_moves:
                         dice1, dice2 = self.dice.current_dice
                         if len(available_moves) == 3:
-                            sum_text = self.font.render(f"Закройте сумму: {self.dice.dice_sum}", True, (0, 0, 0))
+                            sum_text = self.font.render(f"Закройте сумму: {self.dice.dice_sum}", True, theme_manager.get_color('TEXT_COLOR'))
                             self.screen.blit(sum_text, (self.WIDTH // 2 - 90, 40))
                             if dice1 != dice2:
-                                separate_text = self.font.render(f"Или числа: {dice1}, {dice2}", True, (0, 0, 0))
+                                separate_text = self.font.render(f"Или числа: {dice1}, {dice2}", True, theme_manager.get_color('TEXT_COLOR'))
                                 self.screen.blit(separate_text, (self.WIDTH // 2 - 90, 70))
                             else:
-                                separate_text = self.font.render(f"Или число: {dice1}", True, (0, 0, 0))
+                                separate_text = self.font.render(f"Или число: {dice1}", True, theme_manager.get_color('TEXT_COLOR'))
                                 self.screen.blit(separate_text, (self.WIDTH // 2 - 90, 70))
                         elif len(available_moves) == 2:
                             if dice1 != dice2:
-                                separate_text = self.font.render(f"Закройте числа: {dice1}, {dice2}", True, (0, 0, 0))
+                                separate_text = self.font.render(f"Закройте числа: {dice1}, {dice2}", True, theme_manager.get_color('TEXT_COLOR'))
                                 self.screen.blit(separate_text, (self.WIDTH // 2 - 90, 70))
                             else:
-                                separate_text = self.font.render(f"Закройте число: {dice1}", True, (0, 0, 0))
+                                separate_text = self.font.render(f"Закройте число: {dice1}", True, theme_manager.get_color('TEXT_COLOR'))
                                 self.screen.blit(separate_text, (self.WIDTH // 2 - 90, 70))
                         elif len(available_moves) == 1:
-                            sum_text = self.font.render(f"Закройте число: {self.dice.dice_sum}", True, (0, 0, 0))
+                            sum_text = self.font.render(f"Закройте число: {self.dice.dice_sum}", True, theme_manager.get_color('TEXT_COLOR'))
                             self.screen.blit(sum_text, (self.WIDTH // 2 - 90, 40))
                     else:
-                        info_text = self.font.render("Нет доступных ходов - пропуск хода", True, (0, 0, 0))
+                        info_text = self.font.render("Нет доступных ходов - пропуск хода", True, theme_manager.get_color('TEXT_COLOR'))
                         self.screen.blit(info_text, (self.WIDTH // 2 - 150, 220))
                 
                 instruction = self.font.render(
@@ -367,8 +383,8 @@ class GameState:
         pygame.draw.rect(self.screen, (255, 235, 205), confirm_rect, border_radius=10)
         pygame.draw.rect(self.screen, (0, 0, 0), confirm_rect, 2, border_radius=10)
         
-        warning_text = self.font.render("Прогресс игры не сохранится!", True, (0, 0, 0))
-        question_text = self.font.render("Вы точно хотите выйти?", True, (0, 0, 0))
+        warning_text = self.font.render("Прогресс игры не сохранится!", True, theme_manager.get_color('TEXT_COLOR'))
+        question_text = self.font.render("Вы точно хотите выйти?", True, theme_manager.get_color('TEXT_COLOR'))
         
         self.screen.blit(warning_text, (confirm_rect.centerx - warning_text.get_width()//2, confirm_rect.y + 40))
         self.screen.blit(question_text, (confirm_rect.centerx - question_text.get_width()//2, confirm_rect.y + 80))
@@ -378,7 +394,7 @@ class GameState:
         self.no_button.render(self.screen, mouse_pos)
     
     def render_winner_screen(self):
-        background = load_background(self)
+        background = load_background(self.WIDTH, self.HEIGHT)
         if background:
             self.screen.blit(background, (0, 0))
         else:
@@ -409,7 +425,7 @@ class GameState:
         self.menu_button.render(self.screen, mouse_pos)
     
     def render_rules(self):
-        background = load_background(self)
+        background = load_background(self.WIDTH, self.HEIGHT)
         if background:
             self.screen.blit(background, (0, 0))
         else:
@@ -435,7 +451,7 @@ class GameState:
         self.menu_button.render(self.screen, mouse_pos)
 
     def render_records(self):
-        background = load_background(self)
+        background = load_background(self.WIDTH, self.HEIGHT)
         if background:
             self.screen.blit(background, (0, 0))
         else:
@@ -444,7 +460,7 @@ class GameState:
         title = self.title_font.render("Рекорды", True, (255, 255, 255))
         self.screen.blit(title, (self.WIDTH // 2 - title.get_width() // 2, 50))
 
-        from data.scripts.utils import load_records
+        from scripts.utils import load_records
         records = load_records()
         
         if not records:

@@ -1,6 +1,7 @@
 import pygame
 import random
 import time
+from scripts.theme import theme_manager
 
 class Dice:
     def __init__(self, width, height):
@@ -18,6 +19,11 @@ class Dice:
         self.rolling = False
         self.last_roll_time = 0
         self.has_rolled = False
+    
+    def reload_dice_images(self):
+        """Перезагружает изображения костей с учетом текущей темы"""
+        self.dice_images = []
+        self.load_dice_images()
         
     def load_dice_images(self):
         for i in range(6):
@@ -26,16 +32,22 @@ class Dice:
                 img = pygame.transform.scale(img, (self.dice_size, self.dice_size))
                 self.dice_images.append(img)
             except FileNotFoundError:
+                # Создаем кости с использованием цветов из текущей темы
+                dice_bg = theme_manager.get_color('DICE_BG')
+                dice_dot = theme_manager.get_color('DICE_DOT')
+                
                 surf = pygame.Surface((self.dice_size, self.dice_size), pygame.SRCALPHA)
-                pygame.draw.rect(surf, (222, 184, 135), (0, 0, self.dice_size, self.dice_size))
-                pygame.draw.rect(surf, (0, 0, 0), (0, 0, self.dice_size, self.dice_size), 2)
+                pygame.draw.rect(surf, dice_bg, (0, 0, self.dice_size, self.dice_size))
+                pygame.draw.rect(surf, theme_manager.get_color('BLACK'), (0, 0, self.dice_size, self.dice_size), 2)
+                
                 dots = [
                     [(1,1)], [(0,0), (2,2)], [(0,0), (1,1), (2,2)],
                     [(0,0), (0,2), (2,0), (2,2)], [(0,0), (0,2), (1,1), (2,0), (2,2)],
                     [(0,0), (0,1), (0,2), (2,0), (2,1), (2,2)]
                 ][i]
+                
                 for x, y in dots:
-                    pygame.draw.circle(surf, (0, 0, 0), 
+                    pygame.draw.circle(surf, dice_dot, 
                                     (int((x+0.5)*self.dice_size//3), int((y+0.5)*self.dice_size//3)), 
                                     self.dice_size//10)
                 self.dice_images.append(surf)
