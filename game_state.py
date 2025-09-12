@@ -485,3 +485,4 @@ class GameState:
         self.dice.has_rolled = False
         self.dice.rolling = False
         self.show_exit_confirmation = False
+        self.play_music("ingame")

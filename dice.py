@@ -32,7 +32,6 @@ class Dice:
                 img = pygame.transform.scale(img, (self.dice_size, self.dice_size))
                 self.dice_images.append(img)
             except FileNotFoundError:
-                # Создаем кости с использованием цветов из текущей темы
                 dice_bg = theme_manager.get_color('DICE_BG')
                 dice_dot = theme_manager.get_color('DICE_DOT')
                 

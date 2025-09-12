@@ -45,9 +45,9 @@ class Player:
                 if current_card:
                     if not cell['marked']:
                         if cell['number'] in separate_numbers:
-                            cell_color = theme_manager.get_color('AVAILABLE_SINGLE')  # Цвет для отдельных чисел
+                            cell_color = theme_manager.get_color('AVAILABLE_SINGLE')
                         elif cell['number'] == sum_number:
-                            cell_color = theme_manager.get_color('AVAILABLE_SUM')     # Цвет для суммы
+                            cell_color = theme_manager.get_color('AVAILABLE_SUM')
                         else:
                             cell_color = theme_manager.get_color('BEIGE')
                     else:
